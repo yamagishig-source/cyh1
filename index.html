@@ -174,16 +174,24 @@
             </div>
 
             <!-- Controls Bar -->
-            <div class="flex justify-end space-x-3 pt-2">
-                <button id="leader-start-btn" class="px-8 py-3 bg-emerald-500 hover:bg-emerald-400 font-black text-lg rounded-xl shadow-lg transition transform hover:scale-105">
-                    クイズ開始 (Space)
+            <div class="flex justify-between items-center pt-2">
+                <!-- Reset Button for Leader -->
+                <button id="leader-reset-game-btn" class="px-4 py-2.5 bg-slate-800 hover:bg-rose-900/60 border border-slate-700 hover:border-rose-500 text-slate-300 hover:text-rose-200 font-bold text-xs rounded-xl shadow transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span>ゲームをリセット</span>
                 </button>
-                <button id="leader-close-ans-btn" class="hidden px-6 py-3 bg-amber-600 hover:bg-amber-500 font-bold text-base rounded-xl shadow-lg transition">
-                    解答打ち切り
-                </button>
-                <button id="leader-next-btn" class="hidden px-8 py-3 bg-purple-600 hover:bg-purple-500 font-black text-lg rounded-xl shadow-lg transition transform hover:scale-105">
-                    次の問題へ (Space)
-                </button>
+
+                <div class="flex space-x-3">
+                    <button id="leader-start-btn" class="px-8 py-3 bg-emerald-500 hover:bg-emerald-400 font-black text-lg rounded-xl shadow-lg transition transform hover:scale-105">
+                        クイズ開始 (Space)
+                    </button>
+                    <button id="leader-close-ans-btn" class="hidden px-6 py-3 bg-amber-600 hover:bg-amber-500 font-bold text-base rounded-xl shadow-lg transition">
+                        解答打ち切り
+                    </button>
+                    <button id="leader-next-btn" class="hidden px-8 py-3 bg-purple-600 hover:bg-purple-500 font-black text-lg rounded-xl shadow-lg transition transform hover:scale-105">
+                        次の問題へ (Space)
+                    </button>
+                </div>
             </div>
         </section>
 
@@ -418,8 +426,8 @@
         let myPersonalScore = parseInt(localStorage.getItem('quiz_my_score') || '0', 10);
         let currentState = null;
         let timerInterval = null;
-        let viewerTimerInterval = null; // 視聴者タイマー用ID
-        let lastRenderedQIndex = -1; // 不要な数式再描画を防ぐキャッシュ用
+        let viewerTimerInterval = null;
+        let lastRenderedQIndex = -1;
         let unsubscribeGlobal = null;
         let unsubscribeAnswers = null;
         let localSubmittedOption = null;
@@ -683,6 +691,42 @@
         document.getElementById('leader-close-ans-btn').addEventListener('click', () => closeQuestionAndCalculate(null));
         document.getElementById('leader-next-btn').addEventListener('click', () => advanceToNextQuestion());
 
+        // ゲームリセット処理 (いつでも全体を初期状態へ戻す)
+        async function resetEntireGame() {
+            if (!confirm("ゲーム全体をリセットし、初期状態（ロビー）に戻しますか？\n※現在のスコアや進行状況はすべて消去されます。")) {
+                return;
+            }
+
+            try {
+                // 解答データのクリア
+                const ansSnap = await db.collection('quiz_room').doc('global_state').collection('answers').get();
+                const batch = db.batch();
+                ansSnap.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
+
+                // Firestore グローバルステートのリセット
+                await db.collection('quiz_room').doc('global_state').set({
+                    status: 'lobby',
+                    currentIndex: 0,
+                    startTime: 0,
+                    teamAScore: 0,
+                    teamBScore: 0,
+                    leaderResult: null
+                });
+
+                // 個人の得点記録もクリア
+                localStorage.removeItem('quiz_my_score');
+                myPersonalScore = 0;
+                lastRenderedQIndex = -1;
+
+                sfx.playTick();
+            } catch (err) {
+                alert("リセット処理中にエラーが発生しました: " + err.message);
+            }
+        }
+
+        document.getElementById('leader-reset-game-btn').addEventListener('click', resetEntireGame);
+
         function startNextQuestion() {
             sfx.playTick();
             db.collection('quiz_room').doc('global_state').update({
@@ -837,6 +881,7 @@
                 resultView.classList.add('hidden');
                 document.getElementById('viewer-q-num').textContent = "待機中";
                 document.getElementById('viewer-timer-display').textContent = "15.0s";
+                localSubmittedOption = null;
             } else if (currentState.status === 'question') {
                 waitingView.classList.add('hidden');
                 questionView.classList.remove('hidden');
@@ -844,7 +889,6 @@
 
                 document.getElementById('viewer-q-num').textContent = `Q${qIndex + 1}`;
                 
-                // 数式描画キャッシュ（Qが変わったときだけ重い描画を実行）
                 if (this.lastViewerQIndex !== qIndex) {
                     this.lastViewerQIndex = qIndex;
                     renderMathText(document.getElementById('viewer-q-text'), qData.questionText);
@@ -852,9 +896,7 @@
                     renderMathText(document.getElementById('viewer-opt2-text'), qData.option2);
                 }
 
-                // ボタンの選択状態・スタイルの適用（選択肢を両方保持＆選択した方を強調表示）
                 updateViewerButtonStyles();
-
                 startViewerTimer();
             } else if (currentState.status === 'result') {
                 waitingView.classList.add('hidden');
@@ -873,19 +915,16 @@
             const tag2 = document.getElementById('viewer-opt2-selected-tag');
 
             if (localSubmittedOption === 1) {
-                // 赤を選択済み
                 btn1.className = "w-full bg-red-600 border-4 border-yellow-300 ring-4 ring-yellow-300/50 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-2xl relative pointer-events-none";
                 btn2.className = "w-full bg-blue-900/40 border-2 border-blue-800/40 opacity-30 rounded-2xl p-4 flex flex-col items-center justify-center transition pointer-events-none";
                 tag1.classList.remove('hidden');
                 tag2.classList.add('hidden');
             } else if (localSubmittedOption === 2) {
-                // 青を選択済み
                 btn1.className = "w-full bg-red-900/40 border-2 border-red-800/40 opacity-30 rounded-2xl p-4 flex flex-col items-center justify-center transition pointer-events-none";
                 btn2.className = "w-full bg-blue-600 border-4 border-yellow-300 ring-4 ring-yellow-300/50 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-2xl relative pointer-events-none";
                 tag1.classList.add('hidden');
                 tag2.classList.remove('hidden');
             } else {
-                // 未選択（選択可能）
                 btn1.className = "w-full bg-red-600 hover:bg-red-500 active:scale-95 border-2 border-red-400 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-lg relative cursor-pointer";
                 btn2.className = "w-full bg-blue-600 hover:bg-blue-500 active:scale-95 border-2 border-blue-400 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-lg relative cursor-pointer";
                 tag1.classList.add('hidden');
@@ -894,7 +933,7 @@
         }
 
         function startViewerTimer() {
-            stopViewerTimer(); // 既存タイマーを必ず初期化して重複（チラつき）を解消
+            stopViewerTimer();
 
             const startTime = currentState ? currentState.startTime : 0;
             const timerDisplay = document.getElementById('viewer-timer-display');
@@ -940,7 +979,6 @@
             const qData = questionBank[qIndex];
             const isCorrect = (option === qData.answer);
 
-            // 即座にボタンを送信済み表示へ変更
             updateViewerButtonStyles();
 
             try {
@@ -987,7 +1025,6 @@
                 msgEl.className = "text-2xl font-black text-amber-400";
             }
 
-            // 次の問題の準備のために送信フラグを1秒後にリセット
             setTimeout(() => { localSubmittedOption = null; }, 1000);
         }
 
@@ -1028,26 +1065,7 @@
             }
         }
 
-        document.getElementById('leader-finish-reset-btn').addEventListener('click', async () => {
-            if (confirm("ゲーム全体を終了し、ロビーに戻りますか？")) {
-                const ansSnap = await db.collection('quiz_room').doc('global_state').collection('answers').get();
-                const batch = db.batch();
-                ansSnap.forEach(doc => batch.delete(doc.ref));
-                await batch.commit();
-
-                await db.collection('quiz_room').doc('global_state').set({
-                    status: 'lobby',
-                    currentIndex: 0,
-                    startTime: 0,
-                    teamAScore: 0,
-                    teamBScore: 0,
-                    leaderResult: null
-                });
-
-                localStorage.removeItem('quiz_my_score');
-                myPersonalScore = 0;
-            }
-        });
+        document.getElementById('leader-finish-reset-btn').addEventListener('click', resetEntireGame);
 
         /* ------------------------------------------------------------------
            11. INIT
