@@ -112,7 +112,7 @@
             <!-- Compact Header Bar: Scores & Timer & Counts -->
             <div class="grid grid-cols-12 gap-3 items-center bg-slate-900/90 border border-slate-800 rounded-2xl p-3 relative">
                 
-                <!-- Team A Score (Orange) -->
+                <!-- Team A Score (Amber) -->
                 <div id="leader-score-box-a" class="col-span-4 bg-amber-950/40 border-2 border-amber-500/60 rounded-xl p-2.5 flex justify-between items-center relative">
                     <div id="popup-score-a" class="absolute -top-10 left-1/2 -translate-x-1/2 text-4xl font-black pointer-events-none z-30"></div>
                     <div>
@@ -217,7 +217,7 @@
                     <p class="text-slate-300 font-bold text-sm">開始を待っています</p>
                 </div>
 
-                <!-- Active Question & HUGE Red / Blue Buttons -->
+                <!-- Active Question & Both Option Buttons Stay Visible -->
                 <div id="viewer-question-view" class="hidden space-y-3">
                     <div id="viewer-q-text" class="text-center font-bold text-base text-white py-1">
                         ----
@@ -225,21 +225,17 @@
 
                     <div class="grid grid-cols-1 gap-3 h-[50vh]">
                         <!-- Option 1 Button (RED) -->
-                        <button id="viewer-btn-opt1" class="w-full bg-red-600 hover:bg-red-500 active:scale-95 border-2 border-red-400 rounded-2xl p-4 flex items-center justify-center transition shadow-lg">
+                        <button id="viewer-btn-opt1" class="w-full bg-red-600 hover:bg-red-500 active:scale-95 border-2 border-red-400 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-lg relative">
+                            <span id="viewer-opt1-selected-tag" class="hidden absolute top-2 right-3 text-xs bg-yellow-300 text-slate-950 px-2 py-0.5 rounded-full font-black">✓ 送信完了</span>
                             <span id="viewer-opt1-text" class="text-4xl md:text-5xl font-black text-white break-all">----</span>
                         </button>
 
                         <!-- Option 2 Button (BLUE) -->
-                        <button id="viewer-btn-opt2" class="w-full bg-blue-600 hover:bg-blue-500 active:scale-95 border-2 border-blue-400 rounded-2xl p-4 flex items-center justify-center transition shadow-lg">
+                        <button id="viewer-btn-opt2" class="w-full bg-blue-600 hover:bg-blue-500 active:scale-95 border-2 border-blue-400 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-lg relative">
+                            <span id="viewer-opt2-selected-tag" class="hidden absolute top-2 right-3 text-xs bg-yellow-300 text-slate-950 px-2 py-0.5 rounded-full font-black">✓ 送信完了</span>
                             <span id="viewer-opt2-text" class="text-4xl md:text-5xl font-black text-white break-all">----</span>
                         </button>
                     </div>
-                </div>
-
-                <!-- Submitted View -->
-                <div id="viewer-submitted-view" class="hidden py-12 text-center space-y-2 bg-slate-950/60 rounded-xl">
-                    <i class="fa-solid fa-check-circle text-4xl text-emerald-400"></i>
-                    <p id="viewer-submitted-choice-text" class="text-slate-200 font-bold text-lg">解答を送信しました！</p>
                 </div>
 
                 <!-- Result View for Viewer -->
@@ -297,16 +293,17 @@
            0. DEFAULT FIREBASE CONFIG
         ------------------------------------------------------------------ */
         const DEFAULT_FIREBASE_CONFIG = {
-	  apiKey: "AIzaSyDn7nnJ_-Tcv7ioWW90lFvWDllAqBTRT38",
-	  authDomain: "sampleproject001-7196e.firebaseapp.com",
-	  projectId: "sampleproject001-7196e",
-	  storageBucket: "sampleproject001-7196e.firebasestorage.app",
-	  messagingSenderId: "208802038968",
-	  appId: "1:208802038968:web:6b3242bdb02360f884a04d",
-	  measurementId: "G-4GXDY363Z3"
-	};
+            apiKey: "AIzaSyAl6rqDbJGiSBwraxkicINIZxx1OZYoCMs",
+            authDomain: "sampleproject002-8f10f.firebaseapp.com",
+            projectId: "sampleproject002-8f10f",
+            storageBucket: "sampleproject002-8f10f.firebasestorage.app",
+            messagingSenderId: "794183437110",
+            appId: "1:794183437110:web:40be924f9b735615714197",
+            measurementId: "G-V49437G1GC"
+        };
+
         /* ------------------------------------------------------------------
-           1. QUESTION DATA BANK (TeX Supported)
+           1. QUESTION DATA BANK
         ------------------------------------------------------------------ */
         const questionBank = [
             { id: 1, questionText: "大きいのはどっち？", option1: "$6235$", option2: "$6352$", answer: 2, difficulty: 1 },
@@ -421,6 +418,8 @@
         let myPersonalScore = parseInt(localStorage.getItem('quiz_my_score') || '0', 10);
         let currentState = null;
         let timerInterval = null;
+        let viewerTimerInterval = null; // 視聴者タイマー用ID
+        let lastRenderedQIndex = -1; // 不要な数式再描画を防ぐキャッシュ用
         let unsubscribeGlobal = null;
         let unsubscribeAnswers = null;
         let localSubmittedOption = null;
@@ -581,9 +580,12 @@
             diffBox.innerHTML = '';
             for (let i = 0; i < qData.difficulty; i++) diffBox.innerHTML += '<i class="fa-solid fa-star"></i>';
 
-            renderMathText(document.getElementById('leader-q-text'), qData.questionText);
-            renderMathText(document.getElementById('leader-opt-1-text'), qData.option1);
-            renderMathText(document.getElementById('leader-opt-2-text'), qData.option2);
+            if (lastRenderedQIndex !== qIndex) {
+                lastRenderedQIndex = qIndex;
+                renderMathText(document.getElementById('leader-q-text'), qData.questionText);
+                renderMathText(document.getElementById('leader-opt-1-text'), qData.option1);
+                renderMathText(document.getElementById('leader-opt-2-text'), qData.option2);
+            }
 
             const startBtn = document.getElementById('leader-start-btn');
             const closeBtn = document.getElementById('leader-close-ans-btn');
@@ -657,7 +659,7 @@
             if (timerInterval) clearInterval(timerInterval);
         }
 
-        // Leader Key Controls (S/D for RED/BLUE - Team A, K/L for RED/BLUE - Team B, Space for Next)
+        // Leader Key Controls
         window.addEventListener('keydown', (e) => {
             if (myRole !== 'leader' || !currentState) return;
             const key = e.key.toUpperCase();
@@ -671,10 +673,10 @@
 
             if (currentState.status !== 'question') return;
 
-            if (key === 'S') { sfx.playBuzz(); handleLeaderAnswer('A', 1); } // Team A - Red
-            else if (key === 'D') { sfx.playBuzz(); handleLeaderAnswer('A', 2); } // Team A - Blue
-            else if (key === 'K') { sfx.playBuzz(); handleLeaderAnswer('B', 1); } // Team B - Red
-            else if (key === 'L') { sfx.playBuzz(); handleLeaderAnswer('B', 2); } // Team B - Blue
+            if (key === 'S') { sfx.playBuzz(); handleLeaderAnswer('A', 1); }
+            else if (key === 'D') { sfx.playBuzz(); handleLeaderAnswer('A', 2); }
+            else if (key === 'K') { sfx.playBuzz(); handleLeaderAnswer('B', 1); }
+            else if (key === 'L') { sfx.playBuzz(); handleLeaderAnswer('B', 2); }
         });
 
         document.getElementById('leader-start-btn').addEventListener('click', () => startNextQuestion());
@@ -761,7 +763,6 @@
             }
         }
 
-        /* SHOW HUGE O / X OVERLAY & FLOATING SCORES */
         function showResultVisuals(qData) {
             const correctOpt = qData.answer;
             const wrongOpt = (correctOpt === 1) ? 2 : 1;
@@ -769,7 +770,6 @@
             const overlay1 = document.getElementById('mark-overlay-1');
             const overlay2 = document.getElementById('mark-overlay-2');
 
-            // Render Huge Marks
             const correctOverlay = (correctOpt === 1) ? overlay1 : overlay2;
             const wrongOverlay = (wrongOpt === 1) ? overlay1 : overlay2;
 
@@ -779,7 +779,6 @@
             wrongOverlay.innerHTML = `<span class="text-slate-900/60 text-9xl md:text-[18rem] font-black drop-shadow-2xl animate-mark-pop"><i class="fa-solid fa-xmark"></i></span>`;
             wrongOverlay.classList.remove('hidden');
 
-            // Pop Floating Damage/Heal Numbers
             const res = currentState.leaderResult;
             const viewerAAdd = currentState.viewerAAdd || 0;
             const viewerBAdd = currentState.viewerBAdd || 0;
@@ -790,7 +789,6 @@
                 targetPop.innerHTML = `<span class="${isPos ? 'text-emerald-400' : 'text-rose-500'} animate-score-float">${isPos ? '+' : ''}${res.pointsEarned}</span>`;
             }
 
-            // Viewer points popup
             if (viewerAAdd > 0) {
                 const popA = document.getElementById('popup-score-a');
                 popA.innerHTML += `<span class="text-amber-300 text-2xl animate-score-float ml-2">+${viewerAAdd}</span>`;
@@ -828,7 +826,6 @@
 
             const waitingView = document.getElementById('viewer-waiting-view');
             const questionView = document.getElementById('viewer-question-view');
-            const submittedView = document.getElementById('viewer-submitted-view');
             const resultView = document.getElementById('viewer-result-view');
 
             const qIndex = currentState.currentIndex;
@@ -837,50 +834,90 @@
             if (currentState.status === 'lobby') {
                 waitingView.classList.remove('hidden');
                 questionView.classList.add('hidden');
-                submittedView.classList.add('hidden');
                 resultView.classList.add('hidden');
                 document.getElementById('viewer-q-num').textContent = "待機中";
                 document.getElementById('viewer-timer-display').textContent = "15.0s";
             } else if (currentState.status === 'question') {
                 waitingView.classList.add('hidden');
+                questionView.classList.remove('hidden');
                 resultView.classList.add('hidden');
 
                 document.getElementById('viewer-q-num').textContent = `Q${qIndex + 1}`;
-                renderMathText(document.getElementById('viewer-q-text'), qData.questionText);
-                renderMathText(document.getElementById('viewer-opt1-text'), qData.option1);
-                renderMathText(document.getElementById('viewer-opt2-text'), qData.option2);
-
-                if (localSubmittedOption !== null) {
-                    questionView.classList.add('hidden');
-                    submittedView.classList.remove('hidden');
-                } else {
-                    questionView.classList.remove('hidden');
-                    submittedView.classList.add('hidden');
+                
+                // 数式描画キャッシュ（Qが変わったときだけ重い描画を実行）
+                if (this.lastViewerQIndex !== qIndex) {
+                    this.lastViewerQIndex = qIndex;
+                    renderMathText(document.getElementById('viewer-q-text'), qData.questionText);
+                    renderMathText(document.getElementById('viewer-opt1-text'), qData.option1);
+                    renderMathText(document.getElementById('viewer-opt2-text'), qData.option2);
                 }
+
+                // ボタンの選択状態・スタイルの適用（選択肢を両方保持＆選択した方を強調表示）
+                updateViewerButtonStyles();
 
                 startViewerTimer();
             } else if (currentState.status === 'result') {
                 waitingView.classList.add('hidden');
                 questionView.classList.add('hidden');
-                submittedView.classList.add('hidden');
                 resultView.classList.remove('hidden');
 
+                stopViewerTimer();
                 renderViewerResult(qData);
             }
         }
 
+        function updateViewerButtonStyles() {
+            const btn1 = document.getElementById('viewer-btn-opt1');
+            const btn2 = document.getElementById('viewer-btn-opt2');
+            const tag1 = document.getElementById('viewer-opt1-selected-tag');
+            const tag2 = document.getElementById('viewer-opt2-selected-tag');
+
+            if (localSubmittedOption === 1) {
+                // 赤を選択済み
+                btn1.className = "w-full bg-red-600 border-4 border-yellow-300 ring-4 ring-yellow-300/50 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-2xl relative pointer-events-none";
+                btn2.className = "w-full bg-blue-900/40 border-2 border-blue-800/40 opacity-30 rounded-2xl p-4 flex flex-col items-center justify-center transition pointer-events-none";
+                tag1.classList.remove('hidden');
+                tag2.classList.add('hidden');
+            } else if (localSubmittedOption === 2) {
+                // 青を選択済み
+                btn1.className = "w-full bg-red-900/40 border-2 border-red-800/40 opacity-30 rounded-2xl p-4 flex flex-col items-center justify-center transition pointer-events-none";
+                btn2.className = "w-full bg-blue-600 border-4 border-yellow-300 ring-4 ring-yellow-300/50 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-2xl relative pointer-events-none";
+                tag1.classList.add('hidden');
+                tag2.classList.remove('hidden');
+            } else {
+                // 未選択（選択可能）
+                btn1.className = "w-full bg-red-600 hover:bg-red-500 active:scale-95 border-2 border-red-400 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-lg relative cursor-pointer";
+                btn2.className = "w-full bg-blue-600 hover:bg-blue-500 active:scale-95 border-2 border-blue-400 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-lg relative cursor-pointer";
+                tag1.classList.add('hidden');
+                tag2.classList.add('hidden');
+            }
+        }
+
         function startViewerTimer() {
-            const startTime = currentState.startTime;
+            stopViewerTimer(); // 既存タイマーを必ず初期化して重複（チラつき）を解消
+
+            const startTime = currentState ? currentState.startTime : 0;
             const timerDisplay = document.getElementById('viewer-timer-display');
-            const interval = setInterval(() => {
+            if (!startTime) return;
+
+            viewerTimerInterval = setInterval(() => {
                 if (!currentState || currentState.status !== 'question') {
-                    clearInterval(interval);
+                    stopViewerTimer();
                     return;
                 }
                 const elapsed = (Date.now() - startTime) / 1000;
                 const remaining = Math.max(0, 15 - elapsed);
-                timerDisplay.textContent = remaining.toFixed(1) + "s";
+                if (timerDisplay) {
+                    timerDisplay.textContent = remaining.toFixed(1) + "s";
+                }
             }, 100);
+        }
+
+        function stopViewerTimer() {
+            if (viewerTimerInterval) {
+                clearInterval(viewerTimerInterval);
+                viewerTimerInterval = null;
+            }
         }
 
         document.getElementById('viewer-btn-opt1').addEventListener('click', () => submitViewerAnswer(1));
@@ -903,6 +940,9 @@
             const qData = questionBank[qIndex];
             const isCorrect = (option === qData.answer);
 
+            // 即座にボタンを送信済み表示へ変更
+            updateViewerButtonStyles();
+
             try {
                 await db.collection('quiz_room').doc('global_state')
                     .collection('answers').doc(viewerId).set({
@@ -913,8 +953,6 @@
                         timestamp: Date.now()
                     });
             } catch (e) {}
-
-            renderViewerView();
         }
 
         function renderViewerResult(qData) {
@@ -949,6 +987,7 @@
                 msgEl.className = "text-2xl font-black text-amber-400";
             }
 
+            // 次の問題の準備のために送信フラグを1秒後にリセット
             setTimeout(() => { localSubmittedOption = null; }, 1000);
         }
 
