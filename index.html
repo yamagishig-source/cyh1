@@ -225,30 +225,36 @@
                 </div>
 
                 <!-- Active Question & Both Option Buttons Stay Visible -->
-                <div id="viewer-question-view" class="hidden space-y-3">
+                <div id="viewer-question-view" class="hidden space-y-3 relative">
+                    
+                    <!-- Result Card Overlay on top of Question View -->
+                    <div id="viewer-result-overlay" class="hidden absolute inset-0 bg-slate-950/60 backdrop-blur-[2px] z-30 flex flex-col items-center justify-center rounded-2xl p-4 pointer-events-auto">
+                        <div class="bg-slate-900/95 border-2 border-slate-700 rounded-2xl p-5 shadow-2xl text-center space-y-2 max-w-xs w-full animate-mark-pop">
+                            <div id="viewer-result-mark" class="text-6xl my-1"></div>
+                            <div id="viewer-result-msg" class="text-2xl font-black"></div>
+                            <p class="text-[11px] text-slate-400 font-bold pt-1">次の問題をお待ちください...</p>
+                        </div>
+                    </div>
+
                     <div id="viewer-q-text" class="text-center font-bold text-base text-white py-1">
                         ----
                     </div>
 
                     <div class="grid grid-cols-1 gap-3 h-[50vh]">
                         <!-- Option 1 Button (RED) -->
-                        <button id="viewer-btn-opt1" class="w-full bg-red-600 hover:bg-red-500 active:scale-95 border-2 border-red-400 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-lg relative">
-                            <span id="viewer-opt1-selected-tag" class="hidden absolute top-2 right-3 text-xs bg-yellow-300 text-slate-950 px-2 py-0.5 rounded-full font-black">✓ 送信完了</span>
+                        <button id="viewer-btn-opt1" class="w-full bg-red-600 border-2 border-red-400 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-lg relative">
+                            <span id="viewer-opt1-correct-tag" class="hidden absolute top-2 left-3 text-xs bg-emerald-400 text-slate-950 px-2.5 py-0.5 rounded-full font-black shadow">★ 正解</span>
+                            <span id="viewer-opt1-selected-tag" class="hidden absolute top-2 right-3 text-xs bg-yellow-300 text-slate-950 px-2.5 py-0.5 rounded-full font-black shadow">✓ 送信完了</span>
                             <span id="viewer-opt1-text" class="text-4xl md:text-5xl font-black text-white break-all">----</span>
                         </button>
 
                         <!-- Option 2 Button (BLUE) -->
-                        <button id="viewer-btn-opt2" class="w-full bg-blue-600 hover:bg-blue-500 active:scale-95 border-2 border-blue-400 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-lg relative">
-                            <span id="viewer-opt2-selected-tag" class="hidden absolute top-2 right-3 text-xs bg-yellow-300 text-slate-950 px-2 py-0.5 rounded-full font-black">✓ 送信完了</span>
+                        <button id="viewer-btn-opt2" class="w-full bg-blue-600 border-2 border-blue-400 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-lg relative">
+                            <span id="viewer-opt2-correct-tag" class="hidden absolute top-2 left-3 text-xs bg-emerald-400 text-slate-950 px-2.5 py-0.5 rounded-full font-black shadow">★ 正解</span>
+                            <span id="viewer-opt2-selected-tag" class="hidden absolute top-2 right-3 text-xs bg-yellow-300 text-slate-950 px-2.5 py-0.5 rounded-full font-black shadow">✓ 送信完了</span>
                             <span id="viewer-opt2-text" class="text-4xl md:text-5xl font-black text-white break-all">----</span>
                         </button>
                     </div>
-                </div>
-
-                <!-- Result View for Viewer -->
-                <div id="viewer-result-view" class="hidden py-8 text-center space-y-2 relative">
-                    <div id="viewer-result-mark" class="text-6xl my-2"></div>
-                    <div id="viewer-result-msg" class="text-xl font-black"></div>
                 </div>
             </div>
         </section>
@@ -825,7 +831,6 @@
             wrongOverlay.innerHTML = `<span class="text-slate-900/60 text-9xl md:text-[18rem] font-black drop-shadow-2xl animate-mark-pop"><i class="fa-solid fa-xmark"></i></span>`;
             wrongOverlay.classList.remove('hidden');
 
-            // ポップアップ描画領域の初期化 (重複・累積防止)
             const popA = document.getElementById('popup-score-a');
             const popB = document.getElementById('popup-score-b');
             popA.innerHTML = '';
@@ -835,7 +840,6 @@
             const viewerAAdd = currentState.viewerAAdd || 0;
             const viewerBAdd = currentState.viewerBAdd || 0;
 
-            // チームAのスコアポップアップ（リーダー分 ＋ 視聴者全員分）
             let htmlA = '';
             if (res && res.team === 'A') {
                 const isPos = res.pointsEarned > 0;
@@ -846,7 +850,6 @@
             }
             popA.innerHTML = htmlA;
 
-            // チームBのスコアポップアップ（リーダー分 ＋ 視聴者全員分）
             let htmlB = '';
             if (res && res.team === 'B') {
                 const isPos = res.pointsEarned > 0;
@@ -885,7 +888,7 @@
 
             const waitingView = document.getElementById('viewer-waiting-view');
             const questionView = document.getElementById('viewer-question-view');
-            const resultView = document.getElementById('viewer-result-view');
+            const resultOverlay = document.getElementById('viewer-result-overlay');
 
             const qIndex = currentState.currentIndex;
             const qData = questionBank[qIndex] || questionBank[0];
@@ -893,7 +896,7 @@
             if (currentState.status === 'lobby') {
                 waitingView.classList.remove('hidden');
                 questionView.classList.add('hidden');
-                resultView.classList.add('hidden');
+                resultOverlay.classList.add('hidden');
                 document.getElementById('viewer-q-num').textContent = "待機中";
                 document.getElementById('viewer-timer-display').textContent = "15.0s";
 
@@ -906,52 +909,70 @@
             } else if (currentState.status === 'question') {
                 waitingView.classList.add('hidden');
                 questionView.classList.remove('hidden');
-                resultView.classList.add('hidden');
+                resultOverlay.classList.add('hidden'); // 結果オーバーレイを非表示
 
                 document.getElementById('viewer-q-num').textContent = `Q${qIndex + 1}`;
                 
-                // 新しい問題に移動した瞬間に、送信状態を確実に初期化！
                 if (this.lastViewerQIndex !== qIndex) {
                     this.lastViewerQIndex = qIndex;
-                    localSubmittedOption = null; // 解答フラグのリセット
+                    localSubmittedOption = null;
                     renderMathText(document.getElementById('viewer-q-text'), qData.questionText);
                     renderMathText(document.getElementById('viewer-opt1-text'), qData.option1);
                     renderMathText(document.getElementById('viewer-opt2-text'), qData.option2);
                 }
 
-                updateViewerButtonStyles();
+                updateViewerButtonStyles(qData, false);
                 startViewerTimer();
             } else if (currentState.status === 'result') {
                 waitingView.classList.add('hidden');
-                questionView.classList.add('hidden');
-                resultView.classList.remove('hidden');
+                questionView.classList.remove('hidden'); // 問題ビューを残したままにする！
+                resultOverlay.classList.remove('hidden'); // 結果カードオーバーレイを表示！
 
                 stopViewerTimer();
+                updateViewerButtonStyles(qData, true); // 正解タグを表示
                 renderViewerResult(qData);
             }
         }
 
-        function updateViewerButtonStyles() {
+        function updateViewerButtonStyles(qData, isResultPhase) {
             const btn1 = document.getElementById('viewer-btn-opt1');
             const btn2 = document.getElementById('viewer-btn-opt2');
-            const tag1 = document.getElementById('viewer-opt1-selected-tag');
-            const tag2 = document.getElementById('viewer-opt2-selected-tag');
+            const selTag1 = document.getElementById('viewer-opt1-selected-tag');
+            const selTag2 = document.getElementById('viewer-opt2-selected-tag');
+            const correctTag1 = document.getElementById('viewer-opt1-correct-tag');
+            const correctTag2 = document.getElementById('viewer-opt2-correct-tag');
 
+            // 送信状況に応じたスタイル
             if (localSubmittedOption === 1) {
                 btn1.className = "w-full bg-red-600 border-4 border-yellow-300 ring-4 ring-yellow-300/50 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-2xl relative pointer-events-none";
                 btn2.className = "w-full bg-blue-900/40 border-2 border-blue-800/40 opacity-30 rounded-2xl p-4 flex flex-col items-center justify-center transition pointer-events-none";
-                tag1.classList.remove('hidden');
-                tag2.classList.add('hidden');
+                selTag1.classList.remove('hidden');
+                selTag2.classList.add('hidden');
             } else if (localSubmittedOption === 2) {
                 btn1.className = "w-full bg-red-900/40 border-2 border-red-800/40 opacity-30 rounded-2xl p-4 flex flex-col items-center justify-center transition pointer-events-none";
                 btn2.className = "w-full bg-blue-600 border-4 border-yellow-300 ring-4 ring-yellow-300/50 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-2xl relative pointer-events-none";
-                tag1.classList.add('hidden');
-                tag2.classList.remove('hidden');
+                selTag1.classList.add('hidden');
+                selTag2.classList.remove('hidden');
             } else {
-                btn1.className = "w-full bg-red-600 hover:bg-red-500 active:scale-95 border-2 border-red-400 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-lg relative cursor-pointer";
-                btn2.className = "w-full bg-blue-600 hover:bg-blue-500 active:scale-95 border-2 border-blue-400 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-lg relative cursor-pointer";
-                tag1.classList.add('hidden');
-                tag2.classList.add('hidden');
+                const pointerStyle = isResultPhase ? "pointer-events-none" : "cursor-pointer active:scale-95";
+                btn1.className = `w-full bg-red-600 hover:bg-red-500 border-2 border-red-400 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-lg relative ${pointerStyle}`;
+                btn2.className = `w-full bg-blue-600 hover:bg-blue-500 border-2 border-blue-400 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-lg relative ${pointerStyle}`;
+                selTag1.classList.add('hidden');
+                selTag2.classList.add('hidden');
+            }
+
+            // 正答発表フェーズ（isResultPhase）の時、正解の選択肢に「★ 正解」タグを表示
+            if (isResultPhase && qData) {
+                if (qData.answer === 1) {
+                    correctTag1.classList.remove('hidden');
+                    correctTag2.classList.add('hidden');
+                } else if (qData.answer === 2) {
+                    correctTag1.classList.add('hidden');
+                    correctTag2.classList.remove('hidden');
+                }
+            } else {
+                correctTag1.classList.add('hidden');
+                correctTag2.classList.add('hidden');
             }
         }
 
@@ -1002,7 +1023,7 @@
             const qData = questionBank[qIndex];
             const isCorrect = (option === qData.answer);
 
-            updateViewerButtonStyles();
+            updateViewerButtonStyles(qData, false);
 
             try {
                 await db.collection('quiz_room').doc('global_state')
