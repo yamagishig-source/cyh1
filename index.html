@@ -760,7 +760,7 @@
             const qData = questionBank[currentState.currentIndex];
             const isCorrect = (selectedOption === qData.answer);
             const ptsArray = [0, 120, 160, 200];
-            const pointsEarned = isCorrect ? ptsArray[qData.difficulty] : -50;
+            const pointsEarned = isCorrect ? ptsArray[qData.difficulty] : -200;
 
             const leaderResult = {
                 team: team,
