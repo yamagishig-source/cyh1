@@ -37,11 +37,11 @@
             animation: float-score-up 1.8s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
         }
 
-        /* 巨大〇✕マーク表示アニメーション */
+        /* 巨大マーク表示用ポップアニメーション */
         @keyframes mark-pop-zoom {
-            0% { transform: scale(0.2) rotate(-10deg); opacity: 0; }
-            25% { transform: scale(1.1) rotate(0deg); opacity: 1; }
-            75% { transform: scale(1) rotate(0deg); opacity: 1; }
+            0% { transform: scale(0.2); opacity: 0; }
+            25% { transform: scale(1.1); opacity: 1; }
+            75% { transform: scale(1); opacity: 1; }
             100% { transform: scale(1.1); opacity: 0; }
         }
         .animate-mark-pop {
@@ -153,12 +153,22 @@
                 </h2>
             </div>
 
-            <!-- HUGE Options Grid (RED vs BLUE) -->
+            <!-- HUGE Options Grid (RED vs BLUE) with Inequality Box -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow min-h-[50vh] relative">
                 
+                <!-- Inequality Overlay Center Box (正解方向を示す不等号) -->
+                <div id="leader-inequality-box" class="hidden absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+                    <div class="bg-slate-950/90 border-4 border-yellow-400 rounded-full w-24 h-24 md:w-36 md:h-36 flex items-center justify-center shadow-[0_0_30px_rgba(250,204,21,0.6)]">
+                        <span class="text-6xl md:text-8xl font-black text-yellow-300 drop-shadow-[0_0_15px_rgba(250,204,21,0.8)]">
+                            <span id="ineq-desktop" class="hidden md:inline">＞</span>
+                            <span id="ineq-mobile" class="inline md:hidden">∨</span>
+                        </span>
+                    </div>
+                </div>
+
                 <!-- Option 1: RED -->
                 <div id="leader-opt-1-card" class="bg-red-600 border-4 border-red-400 rounded-3xl p-6 flex items-center justify-center text-center relative overflow-hidden shadow-2xl transition-all">
-                    <div id="mark-overlay-1" class="absolute inset-0 flex items-center justify-center z-20 pointer-events-none hidden"></div>
+                    <div id="leader-opt-1-tag" class="hidden absolute top-3 left-3 md:top-4 md:left-4 text-xs md:text-base font-black px-3 py-1 rounded-full shadow-lg z-20"></div>
                     <div id="leader-opt-1-text" class="text-5xl md:text-7xl lg:text-8xl font-black text-white drop-shadow-lg leading-none break-all">
                         ----
                     </div>
@@ -166,7 +176,7 @@
 
                 <!-- Option 2: BLUE -->
                 <div id="leader-opt-2-card" class="bg-blue-600 border-4 border-blue-400 rounded-3xl p-6 flex items-center justify-center text-center relative overflow-hidden shadow-2xl transition-all">
-                    <div id="mark-overlay-2" class="absolute inset-0 flex items-center justify-center z-20 pointer-events-none hidden"></div>
+                    <div id="leader-opt-2-tag" class="hidden absolute top-3 left-3 md:top-4 md:left-4 text-xs md:text-base font-black px-3 py-1 rounded-full shadow-lg z-20"></div>
                     <div id="leader-opt-2-text" class="text-5xl md:text-7xl lg:text-8xl font-black text-white drop-shadow-lg leading-none break-all">
                         ----
                     </div>
@@ -338,7 +348,7 @@
             { id: 17, questionText: "大きいのはどっち？", option1: "$42^{20}$", option2: "$48^{20}$", answer: 2, difficulty: 1 },
             { id: 18, questionText: "大きいのはどっち？", option1: "$5000$秒", option2: "$1$時間$20$分", answer: 1, difficulty: 2 },
             { id: 19, questionText: "大きいのはどっち？", option1: "$3^{19}$", option2: "$5^{21}$", answer: 2, difficulty: 2 },
-            { id: 20, questionText: "大きいのはどっち？", option1: "$\\sqrt{40000}$", option2: "$15^2$", answer: 1, difficulty: 1 },
+            { id: 20, questionText: "大きいのはどっち？", option1: "$\\sqrt{40000}$", option2: "$15^2$", answer: 2, difficulty: 1 },
             { id: 21, questionText: "大きいのはどっち？", option1: "$\\sin{30^{\\circ}}$", option2: "$0.8$", answer: 2, difficulty: 2 },
             { id: 22, questionText: "大きいのはどっち？", option1: "$12$", option2: "$_{5}C_{2}$", answer: 1, difficulty: 2 },
             { id: 23, questionText: "大きいのはどっち？", option1: "$i^4$", option2: "$i^2$", answer: 1, difficulty: 2 },
@@ -628,10 +638,15 @@
         }
 
         function hideOverlays() {
-            document.getElementById('mark-overlay-1').classList.add('hidden');
-            document.getElementById('mark-overlay-2').classList.add('hidden');
+            document.getElementById('leader-inequality-box').classList.add('hidden');
+            document.getElementById('leader-opt-1-tag').classList.add('hidden');
+            document.getElementById('leader-opt-2-tag').classList.add('hidden');
             document.getElementById('popup-score-a').innerHTML = '';
             document.getElementById('popup-score-b').innerHTML = '';
+
+            // 選択肢カードのスタイルリセット
+            document.getElementById('leader-opt-1-card').className = "bg-red-600 border-4 border-red-400 rounded-3xl p-6 flex items-center justify-center text-center relative overflow-hidden shadow-2xl transition-all";
+            document.getElementById('leader-opt-2-card').className = "bg-blue-600 border-4 border-blue-400 rounded-3xl p-6 flex items-center justify-center text-center relative overflow-hidden shadow-2xl transition-all";
         }
 
         function listenViewerAnswersCount() {
@@ -705,13 +720,11 @@
             }
 
             try {
-                // 解答データのクリア
                 const ansSnap = await db.collection('quiz_room').doc('global_state').collection('answers').get();
                 const batch = db.batch();
                 ansSnap.forEach(doc => batch.delete(doc.ref));
                 await batch.commit();
 
-                // Firestore グローバルステートのリセット
                 await db.collection('quiz_room').doc('global_state').set({
                     status: 'lobby',
                     currentIndex: 0,
@@ -721,7 +734,6 @@
                     leaderResult: null
                 });
 
-                // 個人の得点記録および状態のリセット
                 localStorage.removeItem('quiz_my_score');
                 myPersonalScore = 0;
                 lastRenderedQIndex = -1;
@@ -815,28 +827,69 @@
             }
         }
 
+        /* リーダー画面の正誤判定演出（不等号表示 & ハイライト & チーム判定タグ） */
         function showResultVisuals(qData) {
             const correctOpt = qData.answer;
-            const wrongOpt = (correctOpt === 1) ? 2 : 1;
 
-            const overlay1 = document.getElementById('mark-overlay-1');
-            const overlay2 = document.getElementById('mark-overlay-2');
+            // 1. 2つの選択肢間に正解方向を示す不等号を表示
+            const inequalityBox = document.getElementById('leader-inequality-box');
+            const ineqDesktop = document.getElementById('ineq-desktop');
+            const ineqMobile = document.getElementById('ineq-mobile');
 
-            const correctOverlay = (correctOpt === 1) ? overlay1 : overlay2;
-            const wrongOverlay = (wrongOpt === 1) ? overlay1 : overlay2;
+            if (correctOpt === 1) {
+                ineqDesktop.textContent = '＞';
+                ineqMobile.textContent = '∨';
+            } else {
+                ineqDesktop.textContent = '＜';
+                ineqMobile.textContent = '∧';
+            }
+            inequalityBox.classList.remove('hidden');
 
-            correctOverlay.innerHTML = `<span class="text-emerald-400 text-9xl md:text-[18rem] font-black drop-shadow-2xl animate-mark-pop"><i class="fa-regular fa-circle"></i></span>`;
-            correctOverlay.classList.remove('hidden');
+            // 2. 早押しで解答したリーダーのチーム・成否のハイライトとタグ表示
+            const res = currentState.leaderResult;
+            const card1 = document.getElementById('leader-opt-1-card');
+            const card2 = document.getElementById('leader-opt-2-card');
+            const tag1 = document.getElementById('leader-opt-1-tag');
+            const tag2 = document.getElementById('leader-opt-2-tag');
 
-            wrongOverlay.innerHTML = `<span class="text-slate-900/60 text-9xl md:text-[18rem] font-black drop-shadow-2xl animate-mark-pop"><i class="fa-solid fa-xmark"></i></span>`;
-            wrongOverlay.classList.remove('hidden');
+            if (res) {
+                const teamName = (res.team === 'A') ? 'チームA' : 'チームB';
+                const teamStyle = (res.team === 'A') ? 'bg-amber-400 text-slate-950' : 'bg-purple-600 text-white';
+                const resultText = res.isCorrect ? '正解！' : '不正解...';
 
+                if (res.option === 1) {
+                    // 赤を選択
+                    card1.className = "bg-red-600 border-4 border-yellow-300 ring-4 ring-yellow-300/50 rounded-3xl p-6 flex items-center justify-center text-center relative overflow-hidden shadow-2xl transition-all";
+                    card2.className = "bg-blue-900/40 border-2 border-blue-800/40 opacity-30 rounded-3xl p-6 flex items-center justify-center text-center relative overflow-hidden transition-all";
+                    
+                    tag1.className = `absolute top-3 left-3 md:top-4 md:left-4 text-xs md:text-base font-black px-3.5 py-1 rounded-full shadow-lg z-20 ${teamStyle}`;
+                    tag1.textContent = `${teamName}: ${resultText}`;
+                    tag1.classList.remove('hidden');
+                    tag2.classList.add('hidden');
+                } else if (res.option === 2) {
+                    // 青を選択
+                    card1.className = "bg-red-900/40 border-2 border-red-800/40 opacity-30 rounded-3xl p-6 flex items-center justify-center text-center relative overflow-hidden transition-all";
+                    card2.className = "bg-blue-600 border-4 border-yellow-300 ring-4 ring-yellow-300/50 rounded-3xl p-6 flex items-center justify-center text-center relative overflow-hidden shadow-2xl transition-all";
+                    
+                    tag2.className = `absolute top-3 left-3 md:top-4 md:left-4 text-xs md:text-base font-black px-3.5 py-1 rounded-full shadow-lg z-20 ${teamStyle}`;
+                    tag2.textContent = `${teamName}: ${resultText}`;
+                    tag2.classList.remove('hidden');
+                    tag1.classList.add('hidden');
+                }
+            } else {
+                // リーダーの解答なし（時間切れなど）
+                card1.className = "bg-red-600 border-4 border-red-400 rounded-3xl p-6 flex items-center justify-center text-center relative overflow-hidden shadow-2xl transition-all";
+                card2.className = "bg-blue-600 border-4 border-blue-400 rounded-3xl p-6 flex items-center justify-center text-center relative overflow-hidden shadow-2xl transition-all";
+                tag1.classList.add('hidden');
+                tag2.classList.add('hidden');
+            }
+
+            // 3. 得点ポップアップ表示（リーダー分 ＋ 視聴者全員分）
             const popA = document.getElementById('popup-score-a');
             const popB = document.getElementById('popup-score-b');
             popA.innerHTML = '';
             popB.innerHTML = '';
 
-            const res = currentState.leaderResult;
             const viewerAAdd = currentState.viewerAAdd || 0;
             const viewerBAdd = currentState.viewerBAdd || 0;
 
@@ -900,7 +953,6 @@
                 document.getElementById('viewer-q-num').textContent = "待機中";
                 document.getElementById('viewer-timer-display').textContent = "15.0s";
 
-                // ロビー復帰時は個人スコアと選択状態を完全リセット
                 myPersonalScore = 0;
                 localStorage.setItem('quiz_my_score', '0');
                 localSubmittedOption = null;
@@ -909,7 +961,7 @@
             } else if (currentState.status === 'question') {
                 waitingView.classList.add('hidden');
                 questionView.classList.remove('hidden');
-                resultOverlay.classList.add('hidden'); // 結果オーバーレイを非表示
+                resultOverlay.classList.add('hidden');
 
                 document.getElementById('viewer-q-num').textContent = `Q${qIndex + 1}`;
                 
@@ -925,11 +977,11 @@
                 startViewerTimer();
             } else if (currentState.status === 'result') {
                 waitingView.classList.add('hidden');
-                questionView.classList.remove('hidden'); // 問題ビューを残したままにする！
-                resultOverlay.classList.remove('hidden'); // 結果カードオーバーレイを表示！
+                questionView.classList.remove('hidden');
+                resultOverlay.classList.remove('hidden');
 
                 stopViewerTimer();
-                updateViewerButtonStyles(qData, true); // 正解タグを表示
+                updateViewerButtonStyles(qData, true);
                 renderViewerResult(qData);
             }
         }
@@ -942,7 +994,6 @@
             const correctTag1 = document.getElementById('viewer-opt1-correct-tag');
             const correctTag2 = document.getElementById('viewer-opt2-correct-tag');
 
-            // 送信状況に応じたスタイル
             if (localSubmittedOption === 1) {
                 btn1.className = "w-full bg-red-600 border-4 border-yellow-300 ring-4 ring-yellow-300/50 rounded-2xl p-4 flex flex-col items-center justify-center transition shadow-2xl relative pointer-events-none";
                 btn2.className = "w-full bg-blue-900/40 border-2 border-blue-800/40 opacity-30 rounded-2xl p-4 flex flex-col items-center justify-center transition pointer-events-none";
@@ -961,7 +1012,6 @@
                 selTag2.classList.add('hidden');
             }
 
-            // 正答発表フェーズ（isResultPhase）の時、正解の選択肢に「★ 正解」タグを表示
             if (isResultPhase && qData) {
                 if (qData.answer === 1) {
                     correctTag1.classList.remove('hidden');
